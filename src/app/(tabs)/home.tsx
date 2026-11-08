@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import { useCallback, useRef, useState, useMemo } from "react";
 import { theme } from "../../styles/theme";
 import {
   View,
@@ -43,23 +43,6 @@ import { Input } from "../../components/input";
 const { width } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.78;
 
-const USAR_MOCK = true;
-
-const ALUNO_MOCK: Aluno = {
-  nome: "Maria",
-  RA: "123456",
-  turmaID: "turma-mock-1",
-  hiperfoco: { nome: "Dinossauros" },
-};
-
-const MATERIAS_MOCK: MateriaApi[] = [
-  { id: "1", nome: "Português" },
-  { id: "2", nome: "Matemática" },
-  { id: "3", nome: "Geografia" },
-  { id: "4", nome: "História" },
-  { id: "5", nome: "Ciências" },
-];
-
 type Hiperfoco = {
   hiperfocoID?: string;
   nome?: string;
@@ -68,16 +51,12 @@ type Hiperfoco = {
 };
 
 type Aluno = {
+  _id?: string;
+  usuarioId?: string;
   nome?: string;
-  RA?: string;
-  turmaID?: string;
-  turmaId?: string;
-  codTurma?: string;
-  idTurma?: string;
-  escolaID?: string;
-  urlFotoAluno?: string;
-  hyperfoco?: Hiperfoco;
-  hiperfoco?: Hiperfoco;
+  turmaId?: string | null;
+  urlFotoAluno?: string | null;
+  hiperfoco?: string | null;
 };
 
 type MateriaApi = {
@@ -101,9 +80,9 @@ type MateriaCardData = {
 };
 
 type AlunoResponse = {
-  ok?: boolean;
   aluno?: Aluno;
-  message?: string;
+  materias?: string[];
+  erro?: string;
 };
 
 type MateriasResponse = {
@@ -251,24 +230,20 @@ export default function Home() {
     };
   }
 
-  function transformarMateriasEmCards(listaMaterias: MateriaApi[]) {
-    const cards: MateriaCardData[] = listaMaterias.map((materia, index) => {
-      const preset = materiaPreset(materia.nome);
+  function transformarMateriasEmCards(listaMaterias: string[]) {
+    const cards: MateriaCardData[] = listaMaterias.map((nome, index) => {
+      const preset = materiaPreset(nome);
 
       return {
-        id:
-          materia.id ||
-          materia._id ||
-          materia.materiaID ||
-          String(index),
+        id: normalizar(nome) || String(index),
         number: `${String(index + 1).padStart(2, "0")}.`,
         title: preset.title,
-        nome: materia.nome,
+        nome: nome,
         image: preset.image,
         backgroundColor: preset.backgroundColor,
         titleColor: preset.titleColor,
         buttonColor: preset.buttonColor,
-        rota: materia.rota || "Atividades",
+        rota: "Atividades",
       };
     });
 
@@ -276,72 +251,62 @@ export default function Home() {
   }
 
   const carregarTudo = useCallback(async (estaAtiva: () => boolean) => {
-
-    if (USAR_MOCK) {
-      setAluno(ALUNO_MOCK);
-      transformarMateriasEmCards(MATERIAS_MOCK);
-      setLoading(false);
-      return;
-    }
-
     if (!userId) {
-      if (estaAtiva()) setLoading(false);
+      if (estaAtiva()) {
+        setLoading(false);
+        Alert.alert("Erro", "Identificação do aluno não encontrada.");
+      }
       return;
     }
 
     try {
       setLoading(true);
 
-      const [respAluno, respMaterias] = await Promise.all([
-        fetch(`${BASE_URL}/students/aluno/${userId}`),
-        fetch(`${BASE_URL}/subjects/materias`),
-      ]);
-
-      if (!respAluno.ok) {
-        throw new Error("Não foi possível carregar os dados do aluno.");
+      if (!BASE_URL) {
+        throw new Error("URL da API não configurada.");
       }
 
-      const dataAluno: AlunoResponse = await respAluno.json();
-      const dataMaterias: MateriasResponse = await respMaterias.json();
+      const resposta = await fetch(
+        `${BASE_URL.replace(/\/$/, "")}/alunos/${encodeURIComponent(userId)}`
+      );
+
+      const dados: AlunoResponse = await resposta.json();
+
+      if (!resposta.ok) {
+        throw new Error(
+          dados.erro || "Não foi possível carregar os dados do aluno."
+        );
+      }
+
+      if (!dados.aluno) {
+        throw new Error("A API não retornou o perfil do aluno.");
+      }
 
       if (!estaAtiva()) return;
 
-      if (dataAluno.ok && dataAluno.aluno) {
-        setAluno(dataAluno.aluno);
-      } else {
-        setAluno(null);
-        console.log("Erro ao carregar aluno:", dataAluno.message);
-      }
+      setAluno(dados.aluno);
+      transformarMateriasEmCards(dados.materias || []);
 
-      if (respMaterias.ok && dataMaterias.ok) {
-        transformarMateriasEmCards(
-          dataMaterias.materias || dataMaterias.detail || []
-        );
-      } else {
-        setMaterias([]);
-        console.log("Erro ao carregar matérias:", dataMaterias.message);
-      }
     } catch (error) {
       console.log("ERRO AO CARREGAR HOME:", error);
+
       if (estaAtiva()) {
+        setAluno(null);
+        setMaterias([]);
+
         Alert.alert(
           "Erro",
-          "Não foi possível carregar os dados. Verifique sua conexão e tente novamente."
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar os dados."
         );
       }
     } finally {
-      if (estaAtiva()) setLoading(false);
+      if (estaAtiva()) {
+        setLoading(false);
+      }
     }
   }, [userId]);
-
-  useEffect(() => {
-    let estaAtiva = true;
-    carregarTudo(() => estaAtiva);
-
-    return () => {
-      estaAtiva = false;
-    };
-  }, [carregarTudo]);
 
   useFocusEffect(
     useCallback(() => {
@@ -430,25 +395,18 @@ export default function Home() {
     }
   }
 
-  const hiperfocoNome =
-    aluno?.hiperfoco?.nome ||
-    aluno?.hyperfoco?.nome ||
-    "Não informado";
+  const hiperfocoNome = aluno?.hiperfoco || "Não informado";
 
-  const codigoTurmaAluno =
-    aluno?.turmaID ||
-    aluno?.turmaId ||
-    aluno?.codTurma ||
-    aluno?.idTurma;
+  const codigoTurmaAluno = aluno?.turmaId || undefined;
 
   const secoesMaterias: MateriasSection[] =
     codigoTurmaAluno && materiasFiltradas.length
       ? [
-          {
-            title: "Matérias",
-            data: [materiasFiltradas],
-          },
-        ]
+        {
+          title: "Matérias",
+          data: [materiasFiltradas],
+        },
+      ]
       : [];
 
   const renderHeader = () => (

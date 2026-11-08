@@ -7,12 +7,16 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StatusBar,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { File } from 'expo-file-system';
+import { fetch as expoFetch } from 'expo/fetch';
+
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -43,26 +47,16 @@ const TOTAL_PASSOS = 4;
 const COR_ICONE = cores.pessego;
 const TAM_ICONE = 20;
 
-// Mesmo padrão da home: com USAR_MOCK = true a tela NÃO chama a API.
-// Troque para false para enviar o cadastro de verdade.
-const USAR_MOCK = true;
-
-// true = deixa passar pelos 4 passos sem validar (só pra olhar o visual).
-// Volte para false antes de testar o envio e antes de commitar!
-const PULAR_VALIDACAO = true;
-
 type CadastroResponse = {
-  ok?: boolean;
-  message?: string;
-  detail?: string | unknown;
-  userId?: string;
+  mensagem?: string;
+  erro?: string;
+  aluno?: {
+    _id: string;
+    usuarioId: string;
+    nome: string;
+    email: string;
+  };
 };
-
-function arquivoForm(uri: string, nome: string) {
-  const ext = (/\.(\w+)$/.exec(uri)?.[1] ?? 'jpg').toLowerCase();
-  const tipo = ext === 'jpg' ? 'jpeg' : ext;
-  return { uri, name: `${nome}.${ext}`, type: `image/${tipo}` } as any;
-}
 
 export default function Cadastro() {
   const router = useRouter();
@@ -74,7 +68,7 @@ export default function Cadastro() {
   const [passo, setPasso] = useState(0);
   const [erros, setErros] = useState<Erros>({});
   const [loading, setLoading] = useState(false);
-  const rolagem = useRef<ScrollView>(null);
+  const rolagem = useRef<ScrollViewInstance>(null);
 
   // Ao trocar de passo, a rolagem volta pro topo.
   useEffect(() => {
@@ -156,11 +150,9 @@ export default function Cadastro() {
       if (!dataValida(nascimento)) e.nascimento = 'Use o formato DD/MM/AAAA.';
       if (!emailValido(email)) e.email = 'E-mail inválido.';
       if (!telefoneValido(telefone)) e.telefone = 'Informe DDD + número.';
-      if (hiperfoco.trim().length < 2) e.hiperfoco = 'Indique o hiperfoco da criança.';
-    }
-    if (passo === 2) {
-      if (!laudo) e.laudo = 'Envie o laudo de TDAH.';
-      if (!rosto) e.rosto = 'Envie uma imagem do rosto do aluno.';
+      if (hiperfoco.trim().length === 1) {
+        e.hiperfoco = 'Informe pelo menos dois caracteres.';
+      }
     }
     if (passo === 3) {
       if (senha.length < 6) e.senha = 'A senha precisa ter ao menos 6 caracteres.';
@@ -170,7 +162,7 @@ export default function Cadastro() {
   }
 
   async function continuar() {
-    const e: Erros = PULAR_VALIDACAO ? {} : validar();
+    const e: Erros = validar();
     setErros(e);
     if (Object.keys(e).length) return;
 
@@ -182,68 +174,90 @@ export default function Cadastro() {
     await enviarCadastro();
   }
 
+
   async function enviarCadastro() {
-    if (USAR_MOCK) {
-      Alert.alert('Modo teste', 'Cadastro simulado (a API não foi chamada).');
-      router.replace('/login');
-      return;
-    }
-
-    if (!laudo || !rosto) {
-      Alert.alert('Aviso', 'Envie o laudo e a imagem do rosto do aluno.');
-      return;
-    }
-
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // o Render pode demorar para acordar
+    const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
       setLoading(true);
 
+      if (!BASE_URL) {
+        throw new Error("URL da API não configurada.");
+      }
+
       const form = new FormData();
-      form.append('nome', nome.trim());
-      form.append('nomeResponsavel', nomeResp.trim());
-      form.append('cpf', soNumeros(cpf));
-      form.append('cpfResponsavel', soNumeros(cpfResp));
-      form.append('dataNascimento', dataParaIso(nascimento));
-      form.append('email', email.trim().toLowerCase());
-      form.append('telefone', soNumeros(telefone));
-      form.append('hiperfoco', hiperfoco.trim());
-      form.append('senha', senha);
-      form.append('fotoRosto', arquivoForm(rosto.uri, 'rosto'));
-      form.append('laudos', arquivoForm(laudo.uri, 'laudo'));
 
-      // Rota do back-end: POST /register/student (multipart/form-data)
-      const response = await fetch(`${BASE_URL}/register/student`, {
-        method: 'POST',
-        body: form, // sem Content-Type: o fetch coloca o boundary sozinho
-        signal: controller.signal,
-      });
+      form.append("nome", nome.trim());
+      form.append("cpf", soNumeros(cpf));
+      form.append("email", email.trim().toLowerCase());
+      form.append("senha", senha);
+      form.append("nomeResponsavel", nomeResp.trim());
+      form.append("cpfResponsavel", soNumeros(cpfResp));
+      form.append("dataNasc", dataParaIso(nascimento));
+      form.append("telefone", soNumeros(telefone));
 
-      const data: CadastroResponse = await response.json().catch(() => ({}));
+      if (hiperfoco.trim()) {
+        form.append("hiperfoco", hiperfoco.trim());
+      }
 
-      if (response.ok || data.ok) {
-        Alert.alert('Sucesso!', data.message || 'Cadastro realizado com sucesso!');
-        router.replace('/login');
-      } else {
-        Alert.alert(
-          'Erro',
-          data.message || (typeof data.detail === 'string' ? data.detail : '') || 'Não foi possível concluir o cadastro.'
+      // As fotos são opcionais segundo o contrato da API.
+      if (rosto) {
+        form.append('fotoAluno', new File(rosto.uri));
+      }
+
+      if (laudo) {
+        form.append('fotoLaudo', new File(laudo.uri));
+      }
+
+      const response = await expoFetch(
+        `${BASE_URL.replace(/\/$/, '')}/auth/cadastro`,
+        {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        }
+      );
+
+      const data: CadastroResponse = await response
+        .json()
+        .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.erro || "Não foi possível concluir o cadastro."
         );
       }
-    } catch (error: any) {
-      console.log('ERRO AO CADASTRAR:', error);
+
       Alert.alert(
-        'Erro',
-        error?.name === 'AbortError'
-          ? 'O servidor demorou para responder. Tente de novo.'
-          : 'Não foi possível concluir o cadastro. Verifique sua conexão e tente novamente.'
+        "Cadastro realizado!",
+        data.mensagem || "Seu cadastro foi concluído com sucesso.",
+        [
+          {
+            text: "Ir para login",
+            onPress: () => router.replace("/login"),
+          },
+        ]
       );
+
+    } catch (error: unknown) {
+      console.log("ERRO AO CADASTRAR:", error);
+
+      const mensagem =
+        error instanceof Error && error.name === "AbortError"
+          ? "O servidor demorou para responder. Tente novamente."
+          : error instanceof Error
+            ? error.message
+            : "Não foi possível concluir o cadastro.";
+
+      Alert.alert("Erro", mensagem);
+
     } finally {
       clearTimeout(timeout);
       setLoading(false);
     }
   }
+
 
   function voltar() {
     if (passo > 0) setPasso(passo - 1);

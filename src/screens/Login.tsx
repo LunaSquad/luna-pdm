@@ -18,15 +18,17 @@ import { useFonts, Inter_400Regular, Inter_700Bold, Inter_800ExtraBold } from '@
 import { MuseoModerno_200ExtraLight } from '@expo-google-fonts/museomoderno';
 import { cores } from '../theme';
 import { aviso } from '../utils/aviso';
-import { loginProfessor } from '../services/api';
+import { loginAluno } from '../services/api';
+import { useUser } from '../context/UserContext';
 
 const ilustracao = require('../../assets/login-ilustracao.png');
 
-export default function LoginProfessor() {
+export default function LoginAluno() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
   const router = useRouter();
+  const { setUser } = useUser();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -51,9 +53,24 @@ export default function LoginProfessor() {
     }
     try {
       setCarregando(true);
-      const dados = await loginProfessor(email.trim(), senha);
-      // TODO: guardar dados.token e navegar para a home do professor
-      aviso('Login', 'Login realizado com sucesso!');
+      const dados = await loginAluno(email.trim(), senha);
+
+      if (!dados.aluno?._id || !dados.usuario?.tipoUser) {
+        throw new Error('A API não retornou os dados esperados do aluno.');
+      }
+
+      setUser({
+        userId: dados.aluno._id,
+        tipoUser: dados.usuario.tipoUser,
+      });
+
+      router.replace({
+        pathname: '/(tabs)/home',
+        params: {
+          userId: dados.aluno._id,
+          tipoUser: dados.usuario.tipoUser,
+        },
+      });
     } catch (erro: any) {
       aviso('Não foi possível entrar', erro.message);
     } finally {
@@ -140,7 +157,10 @@ export default function LoginProfessor() {
 
             <Text style={styles.cadastro}>
               Novo por aqui?{' '}
-              <Text style={styles.cadastroLink} onPress={() => aviso('Cadastro')}>
+              <Text
+                style={styles.cadastroLink}
+                onPress={() => router.push('/cadastro')}
+              >
                 Cadastre-se!
               </Text>
             </Text>

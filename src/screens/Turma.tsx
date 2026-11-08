@@ -16,12 +16,9 @@ import { aviso } from "../utils/aviso";
 import { useUser } from "../context/UserContext";
 import {
   buscarTurmaDoAluno,
-  buscarTurmaMock,
   extrairConvite,
-  LINK_CONVITE_MOCK,
   TurmaCompleta,
   vincularTurma,
-  vincularTurmaMock,
 } from "../services/turmaService";
 
 import { TurmaHeaderCard } from "../components/turmaHeaderCard";
@@ -32,9 +29,6 @@ import { EstadoMensagem } from "../components/estadoMensagem";
 
 import LogoLuna from "../../assets/luna.png";
 
-// Mesmo padrão da Home: com true a tela usa dados fictícios (sem backend).
-const USAR_MOCK = true;
-
 export default function Turma() {
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
   const { userId: userIdContexto } = useUser();
@@ -42,8 +36,7 @@ export default function Turma() {
   // Na tab bar o userId não vem pela rota, então cai para o UserContext.
   const userId =
     (Array.isArray(userIdParam) ? userIdParam[0] : userIdParam) ??
-    userIdContexto ??
-    (USAR_MOCK ? "mock-123" : undefined);
+    userIdContexto;
 
   const [dados, setDados] = useState<TurmaCompleta | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -60,12 +53,14 @@ export default function Turma() {
         else setCarregando(true);
         setErro(null);
 
-        let resultado: TurmaCompleta | null;
-        if (USAR_MOCK) {
-          resultado = await buscarTurmaMock();
-        } else {
-          if (!userId) throw new Error("Não foi possível identificar o aluno.");
-          resultado = await buscarTurmaDoAluno(userId);
+        if (!userId) {
+          throw new Error("Não foi possível identificar o aluno.");
+        }
+
+        const resultado = await buscarTurmaDoAluno(userId);
+
+        if (estaAtiva()) {
+          setDados(resultado);
         }
 
         if (estaAtiva()) setDados(resultado);
@@ -111,12 +106,11 @@ export default function Turma() {
       setNfcStatus("lendo");
       const convite = extrairConvite(link);
 
-      if (USAR_MOCK) {
-        await vincularTurmaMock();
-      } else {
-        if (!userId) throw new Error("Não foi possível identificar o aluno.");
-        await vincularTurma(userId, convite);
+      if (!userId) {
+        throw new Error("Não foi possível identificar o aluno.");
       }
+
+      await vincularTurma(userId, convite);
 
       setNfcStatus("sucesso");
       await carregar(() => true, true);
@@ -127,13 +121,10 @@ export default function Turma() {
   }
 
   function aoPressionarNfc() {
-    if (USAR_MOCK) {
-      // Simula a leitura da tag para dar pra testar o fluxo inteiro.
-      processarConvite(LINK_CONVITE_MOCK);
-      return;
-    }
-    // TODO (parte do NFC): iniciar a leitura e chamar processarConvite(link).
-    aviso("NFC", "A leitura da tag será implementada em breve.");
+    aviso(
+      "NFC",
+      "A leitura da tag NFC será implementada na próxima etapa."
+    );
   }
 
   /* ------------------------------ telas ------------------------------ */

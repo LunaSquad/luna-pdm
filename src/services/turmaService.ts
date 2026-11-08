@@ -31,7 +31,6 @@ export type TurmaCompleta = {
 
 export type Convite = {
   turmaId: string;
-  codigo: string;
 };
 
 /* ------------------------------------------------------------------ */
@@ -51,8 +50,10 @@ async function requisitar<T>(caminho: string, opcoes: RequestInit = {}): Promise
 
     const dados = await resposta.json().catch(() => ({}));
 
-    if (!resposta.ok || dados.ok === false) {
-      throw new Error(dados.message ?? "Não foi possível completar a requisição.");
+    if (!resposta.ok) {
+      throw new Error(
+        dados.erro ?? dados.mensagem ?? "Não foi possível completar a requisição."
+      );
     }
     return dados as T;
   } catch (erro: any) {
@@ -72,17 +73,20 @@ async function requisitar<T>(caminho: string, opcoes: RequestInit = {}): Promise
 /* Endpoints                                                          */
 /* ------------------------------------------------------------------ */
 
-type AlunoApi = {
-  turmaID?: string;
-  turmaId?: string;
-  idTurma?: string;
-  codTurma?: string;
-};
-
-// ⚠️ Formato assumido — ajuste aqui se a API devolver nomes diferentes.
 type TurmaApi = {
-  turma: Partial<Turma> & { _id?: string; turmaID?: string; professor?: ProfessorApi };
-  professor?: ProfessorApi;
+  emTurma: boolean;
+  mensagem?: string;
+  turma: {
+    _id: string;
+    nome: string;
+    materias?: string[];
+  } | null;
+  professor: {
+    _id: string;
+    nome: string;
+    email?: string;
+    urlFotoProfessor?: string | null;
+  } | null;
 };
 
 type ProfessorApi = Partial<Professor> & { _id?: string; professorID?: string };
@@ -96,37 +100,36 @@ type MateriaApi = { id?: string; _id?: string; materiaID?: string; nome: string 
  * 3) GET /subjects/materias       -> mesmo endpoint da Home
  * Retorna null quando o aluno ainda não está em nenhuma turma.
  */
-export async function buscarTurmaDoAluno(userId: string): Promise<TurmaCompleta | null> {
-  const { aluno } = await requisitar<{ aluno?: AlunoApi }>(`/students/aluno/${userId}`);
-  const turmaId = aluno?.turmaID ?? aluno?.turmaId ?? aluno?.idTurma ?? aluno?.codTurma;
+export async function buscarTurmaDoAluno(
+  userId: string
+): Promise<TurmaCompleta | null> {
 
-  if (!turmaId) return null;
+  const dados = await requisitar<TurmaApi>(
+    `/alunos/${encodeURIComponent(userId)}/turma`
+  );
 
-  const [dados, resMaterias] = await Promise.all([
-    requisitar<TurmaApi>(`/classes/turma/${turmaId}`),
-    requisitar<{ materias?: MateriaApi[]; detail?: MateriaApi[] }>(`/subjects/materias`),
-  ]);
-
-  const p = dados.professor ?? dados.turma.professor;
+  if (!dados.emTurma || !dados.turma) {
+    return null;
+  }
 
   return {
     turma: {
-      id: dados.turma._id ?? dados.turma.turmaID ?? dados.turma.id ?? turmaId,
-      nome: dados.turma.nome ?? "Turma",
-      escola: dados.turma.escola ?? "",
-      anoLetivo: dados.turma.anoLetivo,
-      periodo: dados.turma.periodo,
+      id: dados.turma._id,
+      nome: dados.turma.nome,
+      escola: "",
     },
-    professor: p
+
+    professor: dados.professor
       ? {
-          id: p._id ?? p.professorID ?? p.id ?? "professor",
-          nome: p.nome ?? "Professor",
-          urlFoto: p.urlFoto,
+          id: dados.professor._id,
+          nome: dados.professor.nome,
+          urlFoto: dados.professor.urlFotoProfessor ?? undefined,
         }
       : undefined,
-    materias: (resMaterias.materias ?? resMaterias.detail ?? []).map((m, i) => ({
-      id: m.id ?? m._id ?? m.materiaID ?? String(i),
-      nome: m.nome,
+
+    materias: (dados.turma.materias ?? []).map((nome, index) => ({
+      id: `${index}-${nome}`,
+      nome,
     })),
   };
 }
@@ -136,25 +139,35 @@ export async function buscarTurmaDoAluno(userId: string): Promise<TurmaCompleta 
  * É o mesmo formato usado na Home — serve para o link colado e para a tag NFC.
  */
 export function extrairConvite(link: string): Convite {
-  const queryString = link.trim().split("?")[1];
-  if (!queryString) throw new Error("Link sem parâmetros.");
+  const linkLimpo = link.trim();
 
-  const params = new URLSearchParams(queryString);
-  const codigo = params.get("codigo");
-  const turmaId = params.get("turmaId");
+  const resultado = linkLimpo.match(
+    /^appluna:\/\/turma\/([^/?#]+)\/?$/i
+  );
 
-  if (!codigo || !turmaId) {
-    throw new Error("O link de convite está incompleto ou inválido.");
+  if (resultado) {
+    return {
+      turmaId: decodeURIComponent(resultado[1]),
+    };
   }
-  return { codigo, turmaId };
+
+  throw new Error("Link de convite inválido.");
 }
 
 /** Vincula o aluno à turma (mesmo endpoint já usado na Home). */
-export async function vincularTurma(userId: string, convite: Convite) {
-  return requisitar(`/students/aluno/${userId}/vincular-turma`, {
-    method: "PUT",
-    body: JSON.stringify({ turmaId: convite.turmaId, codigoAcesso: convite.codigo }),
-  });
+export async function vincularTurma(
+  userId: string,
+  convite: Convite
+) {
+  return requisitar(
+    `/alunos/${encodeURIComponent(userId)}/turma/vincular`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        turmaId: convite.turmaId,
+      }),
+    }
+  );
 }
 
 /* ------------------------------------------------------------------ */
