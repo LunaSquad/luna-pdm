@@ -1,4 +1,8 @@
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!BASE_URL) {
+  console.warn("A variável EXPO_PUBLIC_API_URL não foi configurada.");
+}
 
 export async function loginProfessor(email: string, senha: string) {
   const controller = new AbortController();

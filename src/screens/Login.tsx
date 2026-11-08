@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Image,
   KeyboardAvoidingView,
@@ -25,6 +26,7 @@ export default function LoginProfessor() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const router = useRouter();
 
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -35,22 +37,29 @@ export default function LoginProfessor() {
 
   if (!fontsLoaded) return null;
 
+  function entrarTeste() {
+    router.replace({
+      pathname: '/home',
+      params: { userId: 'mock-123', tipoUser: 'aluno' },
+    });
+  }
+
   async function entrar() {
-  if (!email.trim() || !senha.trim()) {
-    aviso('Campos obrigatórios', 'Informe o e-mail institucional e a senha.');
-    return;
+    if (!email.trim() || !senha.trim()) {
+      aviso('Campos obrigatórios', 'Informe o e-mail institucional e a senha.');
+      return;
+    }
+    try {
+      setCarregando(true);
+      const dados = await loginProfessor(email.trim(), senha);
+      // TODO: guardar dados.token e navegar para a home do professor
+      aviso('Login', 'Login realizado com sucesso!');
+    } catch (erro: any) {
+      aviso('Não foi possível entrar', erro.message);
+    } finally {
+      setCarregando(false);
+    }
   }
-  try {
-    setCarregando(true);
-    const dados = await loginProfessor(email.trim(), senha);
-    // TODO: guardar dados.token e navegar para a home do professor
-    aviso('Login', 'Login realizado com sucesso!');
-  } catch (erro: any) {
-    aviso('Não foi possível entrar', erro.message);
-  } finally {
-    setCarregando(false);
-  }
-}
 
   return (
     <SafeAreaView style={styles.tela}>
@@ -122,6 +131,12 @@ export default function LoginProfessor() {
                 <Text style={styles.botaoTexto}>Login</Text>
               )}
             </Pressable>
+
+            {__DEV__ && (
+              <Pressable style={styles.botaoTeste} onPress={entrarTeste}>
+                <Text style={styles.botaoTesteTexto}>Entrar (modo teste)</Text>
+              </Pressable>
+            )}
 
             <Text style={styles.cadastro}>
               Novo por aqui?{' '}
@@ -202,11 +217,11 @@ const styles = StyleSheet.create({
   botaoTexto: { fontFamily: 'Inter_700Bold', color: cores.verde, fontSize: 20 },
 
   cadastro: {
-    fontFamily: 'Inter_400Regular', 
-    color: cores.branco, 
-    fontSize: 13, 
-    textAlign: 'center', 
-    marginTop: 22 
+    fontFamily: 'Inter_400Regular',
+    color: cores.branco,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 22
   },
 
   cadastroLink: { fontFamily: 'Inter_700Bold' },
@@ -221,5 +236,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 28,
     marginTop: 16,
+  },
+  botaoTeste: {
+    alignSelf: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: cores.pessego,
+  },
+  botaoTesteTexto: {
+    fontFamily: 'Inter_700Bold',
+    color: cores.pessego,
+    fontSize: 14,
   },
 });
