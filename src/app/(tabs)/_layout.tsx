@@ -8,9 +8,10 @@ const PINK = "#FFDDD2";
 function iconByRoute(routeName: string): keyof typeof Ionicons.glyphMap {
     switch (routeName) {
         case "home": return "home";
+        case "turma": return "people";
         case "desempenho": return "bar-chart";
         case "em-andamento": return "play-circle";
-        case "userProfile": return "person";
+        case "perfil": return "person";
         default: return "ellipse";
     }
 }
@@ -41,9 +42,10 @@ export default function TabsLayout() {
         >
             {/* Os "names" devem corresponder aos nomes dos arquivos na pasta (tabs) */}
             <Tabs.Screen name="home" />
+            <Tabs.Screen name="turma" />
             <Tabs.Screen name="desempenho" />
             <Tabs.Screen name="em-andamento" />
-            <Tabs.Screen name="userProfile" />
+            <Tabs.Screen name="perfil" />
         </Tabs>
     );
 }
