@@ -23,7 +23,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O aplicativo precisa acessar suas fotos para anexar o laudo e a foto do aluno.",
+          "cameraPermission": "O aplicativo precisa acessar a câmera para tirar a foto do laudo e do aluno."
+        }
+      ]
     ]
   }
 }
