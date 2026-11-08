@@ -10,7 +10,7 @@ function iconByRoute(routeName: string): keyof typeof Ionicons.glyphMap {
         case "home": return "home";
         case "desempenho": return "bar-chart";
         case "em-andamento": return "play-circle";
-        case "perfil": return "person";
+        case "userProfile": return "person";
         default: return "ellipse";
     }
 }
@@ -43,7 +43,7 @@ export default function TabsLayout() {
             <Tabs.Screen name="home" />
             <Tabs.Screen name="desempenho" />
             <Tabs.Screen name="em-andamento" />
-            <Tabs.Screen name="perfil" />
+            <Tabs.Screen name="userProfile" />
         </Tabs>
     );
 }
