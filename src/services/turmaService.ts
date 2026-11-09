@@ -1,4 +1,4 @@
-import { BASE_URL } from "./api";
+import { requisitar } from "./api";
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                              */
@@ -33,52 +33,14 @@ export type Convite = {
   turmaId: string;
 };
 
-/* ------------------------------------------------------------------ */
-/* Requisição base (fetch + timeout + tratamento de erro)             */
-/* ------------------------------------------------------------------ */
-
-async function requisitar<T>(caminho: string, opcoes: RequestInit = {}): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-
-  try {
-    const resposta = await fetch(`${BASE_URL}${caminho}`, {
-      ...opcoes,
-      headers: { "Content-Type": "application/json", ...opcoes.headers },
-      signal: controller.signal,
-    });
-
-    const dados = await resposta.json().catch(() => ({}));
-
-    if (!resposta.ok) {
-      throw new Error(
-        dados.erro ?? dados.mensagem ?? "Não foi possível completar a requisição."
-      );
-    }
-    return dados as T;
-  } catch (erro: any) {
-    if (erro.name === "AbortError") {
-      throw new Error("O servidor demorou para responder. Tente de novo.");
-    }
-    if (erro instanceof TypeError) {
-      throw new Error("Sem conexão com o servidor. Verifique sua internet.");
-    }
-    throw erro;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Endpoints                                                          */
-/* ------------------------------------------------------------------ */
-
+/** Formato que a API devolve em GET /alunos/:id/turma e POST .../vincular */
 type TurmaApi = {
   emTurma: boolean;
   mensagem?: string;
   turma: {
     _id: string;
     nome: string;
+    codigoConvite?: string;
     materias?: string[];
   } | null;
   professor: {
@@ -89,28 +51,12 @@ type TurmaApi = {
   } | null;
 };
 
-type ProfessorApi = Partial<Professor> & { _id?: string; professorID?: string };
+/* ------------------------------------------------------------------ */
+/* Conversão API -> modelo usado pelas telas                          */
+/* ------------------------------------------------------------------ */
 
-type MateriaApi = { id?: string; _id?: string; materiaID?: string; nome: string };
-
-/**
- * Busca tudo que a tela precisa:
- * 1) GET /students/aluno/:userId  -> descobre o id da turma (mesmo endpoint da Home)
- * 2) GET /classes/turma/:turmaId  -> ⚠️ rota assumida, confirmar com o backend
- * 3) GET /subjects/materias       -> mesmo endpoint da Home
- * Retorna null quando o aluno ainda não está em nenhuma turma.
- */
-export async function buscarTurmaDoAluno(
-  userId: string
-): Promise<TurmaCompleta | null> {
-
-  const dados = await requisitar<TurmaApi>(
-    `/alunos/${encodeURIComponent(userId)}/turma`
-  );
-
-  if (!dados.emTurma || !dados.turma) {
-    return null;
-  }
+function mapearTurma(dados: TurmaApi): TurmaCompleta | null {
+  if (!dados.emTurma || !dados.turma) return null;
 
   return {
     turma: {
@@ -118,7 +64,6 @@ export async function buscarTurmaDoAluno(
       nome: dados.turma.nome,
       escola: "",
     },
-
     professor: dados.professor
       ? {
           id: dados.professor._id,
@@ -126,7 +71,6 @@ export async function buscarTurmaDoAluno(
           urlFoto: dados.professor.urlFotoProfessor ?? undefined,
         }
       : undefined,
-
     materias: (dados.turma.materias ?? []).map((nome, index) => ({
       id: `${index}-${nome}`,
       nome,
@@ -134,76 +78,57 @@ export async function buscarTurmaDoAluno(
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Endpoints                                                          */
+/* ------------------------------------------------------------------ */
+
 /**
- * Lê o link de convite (ex.: luna://app/convite?codigo=ABC&turmaId=123).
- * É o mesmo formato usado na Home — serve para o link colado e para a tag NFC.
+ * GET /alunos/:id/turma
+ * Retorna null quando o aluno ainda não está em nenhuma turma
+ * (a tela então mostra o estado "sem turma").
  */
-export function extrairConvite(link: string): Convite {
-  const linkLimpo = link.trim();
-
-  const resultado = linkLimpo.match(
-    /^appluna:\/\/turma\/([^/?#]+)\/?$/i
-  );
-
-  if (resultado) {
-    return {
-      turmaId: decodeURIComponent(resultado[1]),
-    };
-  }
-
-  throw new Error("Link de convite inválido.");
+export async function buscarTurmaDoAluno(userId: string): Promise<TurmaCompleta | null> {
+  const dados = await requisitar<TurmaApi>(`/alunos/${encodeURIComponent(userId)}/turma`);
+  return mapearTurma(dados);
 }
 
-/** Vincula o aluno à turma (mesmo endpoint já usado na Home). */
-export async function vincularTurma(
-  userId: string,
-  convite: Convite
-) {
-  return requisitar(
+/**
+ * Lê o que veio da tag NFC (ou digitado/colado) e devolve o id da turma.
+ * Formatos aceitos:
+ *   appluna://turma/6aea297b7e5984a2a167be19   <- o recomendado para gravar na tag
+ *   6aea297b7e5984a2a167be19                   <- só o id também funciona
+ */
+export function extrairConvite(texto: string): Convite {
+  const limpo = texto.trim();
+
+  const link = limpo.match(/^[a-z][a-z0-9+.-]*:\/\/turma\/([^/?#\s]+)\/?$/i);
+  const turmaId = link ? decodeURIComponent(link[1]) : limpo;
+
+  // ObjectId do MongoDB = 24 caracteres hexadecimais
+  if (!/^[a-f0-9]{24}$/i.test(turmaId)) {
+    throw new Error(
+      "Essa tag não é um convite de turma válido. Peça ao professor para gravar de novo."
+    );
+  }
+
+  return { turmaId };
+}
+
+/**
+ * POST /alunos/:id/turma/vincular  { turmaId }
+ * Já devolve a turma completa, então a tela atualiza sem nova requisição.
+ */
+export async function vincularTurma(userId: string, convite: Convite) {
+  const dados = await requisitar<TurmaApi>(
     `/alunos/${encodeURIComponent(userId)}/turma/vincular`,
     {
       method: "POST",
-      body: JSON.stringify({
-        turmaId: convite.turmaId,
-      }),
+      body: JSON.stringify({ turmaId: convite.turmaId }),
     }
   );
+
+  return {
+    mensagem: dados.mensagem ?? "Você entrou na turma!",
+    turma: mapearTurma(dados),
+  };
 }
-
-/* ------------------------------------------------------------------ */
-/* Mock (para desenvolver o visual sem depender do backend)           */
-/* ------------------------------------------------------------------ */
-
-const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-let mockVinculado = true; // troque para false para ver a tela "sem turma"
-
-const TURMA_MOCK: TurmaCompleta = {
-  turma: {
-    id: "turma-mock-1",
-    nome: "5º Ano B",
-    escola: "Escola Municipal Luna",
-    anoLetivo: "2026",
-    periodo: "Manhã",
-  },
-  professor: { id: "p1", nome: "Prof.ª Helena Duarte" },
-  materias: [
-    { id: "1", nome: "Português" },
-    { id: "2", nome: "Matemática" },
-    { id: "3", nome: "Geografia" },
-    { id: "4", nome: "História" },
-    { id: "5", nome: "Ciências" },
-  ],
-};
-
-export async function buscarTurmaMock(): Promise<TurmaCompleta | null> {
-  await esperar(700);
-  return mockVinculado ? TURMA_MOCK : null;
-}
-
-export async function vincularTurmaMock(): Promise<void> {
-  await esperar(900);
-  mockVinculado = true;
-}
-
-export const LINK_CONVITE_MOCK = "luna://app/convite?codigo=LUNA-5B&turmaId=turma-mock-1";

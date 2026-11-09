@@ -1,8 +1,8 @@
 import { View, Text, Image, StyleSheet } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { theme } from "../styles/theme";
+import { theme } from "../../styles/theme";
 
-import Luna3d from "../../assets/luna3d.png";
+import Luna3d from "../../../assets/luna3d.png";
 
 type Props = {
   nome: string;

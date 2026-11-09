@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { theme } from "../styles/theme";
+import { theme } from "../../styles/theme";
 import CustomButton from "./customButton";
 
 type Props = {
