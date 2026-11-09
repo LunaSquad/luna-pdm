@@ -1,5 +1,7 @@
 # Luna PDM — app do aluno
 
+Repositório destinado a ATV 2 da matéria de PDM
+
 App móvel (React Native + Expo Router) do Projeto Integrador **Luna**, consumindo a API REST `api-luna-pdm`.
 Atividade Avaliativa II — Programação para Dispositivos Móveis I.
 
