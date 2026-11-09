@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
   },
 
   textoHiperfoco: {
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "bold",
     color: "#fff",
     width: 210,

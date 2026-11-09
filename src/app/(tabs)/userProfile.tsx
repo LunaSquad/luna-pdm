@@ -25,7 +25,6 @@ import LogoLuna from "../../../assets/luna.png";
 
 // Importação de componentes reutilizáveis com Props (Requisito 6)
 import { CampoPerfil } from "../../components/perfil/ProfileField";
-import { AcaoPerfil } from "../../components/perfil/ProfileAction";
 
 const COR_PRIMARIA = "#00595F";
 const COR_BOTAO_LAUDO = "#DDEFF1";
@@ -167,27 +166,6 @@ export default function Perfil() {
             </CampoPerfil>
           </View>
 
-          <AcaoPerfil
-            icone="edit-note"
-            texto="Editar hiperfoco"
-            onPress={() =>
-              router.push({
-                pathname: "/EditHyperfocus",
-                params: { userId },
-              })
-            }
-          />
-
-          <AcaoPerfil
-            icone="edit"
-            texto="Editar dados"
-            onPress={() =>
-              router.push({
-                pathname: "/EditarDados",
-                params: { userId },
-              })
-            }
-          />
         </View>
       </ScrollView>
     </View>

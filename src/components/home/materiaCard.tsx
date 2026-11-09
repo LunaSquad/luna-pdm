@@ -92,19 +92,8 @@ export function MateriaCard({
       />
 
       <Text style={styles.description}>
-        Clique no botão para visualizar as lições atribuídas pelo professor.
+        Nas versões seguintes será possível visualizar todas as atividades atribuidas pelos professor.
       </Text>
-
-      <CustomButton
-        title="Visualizar"
-        onPress={onPress}
-        textColor="#FFFFFF"
-        fontWeight="bold"
-        style={[
-          styles.button,
-          { backgroundColor: buttonColor },
-        ]}
-      />
     </View>
   );
 }
@@ -161,12 +150,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#4B5563",
     paddingHorizontal: 4,
-  },
-  button: {
-    width: 105,
-    paddingVertical: 7,
-    paddingHorizontal: 0,
-    borderRadius: 6,
   },
   badgeWrapper: {
     position: "absolute",

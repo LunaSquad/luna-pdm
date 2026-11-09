@@ -360,30 +360,8 @@ export default function Home() {
           <View style={styles.spaceHiperfoco}>
             <View style={styles.hiperfocoContent}>
               <Text style={styles.textoHiperfoco}>
-                Indique o hiperfoco{"\n"}da criança aqui!
+                Seja Bem Vindo{"\n"}ao Luna!
               </Text>
-
-              <View style={styles.hiperfocoActionArea}>
-                <Image source={seta} style={styles.imageSeta} />
-
-                <TouchableOpacity
-                  style={styles.bottonHiperfoco}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/EditHyperfocus",
-                      params: {
-                        userId,
-                        hiperfocoAtual: hiperfocoNome,
-                      },
-                    })
-                  }
-                >
-                  <Image
-                    source={buttonIcon}
-                    style={styles.buttonIconHiperfoco}
-                  />
-                </TouchableOpacity>
-              </View>
             </View>
 
             <Image source={Luna3d} style={styles.luna3d} />
@@ -485,9 +463,6 @@ export default function Home() {
                     })
                   }
                 >
-                  <Text style={styles.textVejamais}>
-                    Veja mais →
-                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -555,50 +530,6 @@ export default function Home() {
 
           <View style={styles.drawerLine} />
 
-          <TouchableOpacity
-            style={styles.drawerItem}
-            onPress={() => {
-              fecharMenu();
-              router.push({
-                pathname: "/EditHyperfocus",
-                params: {
-                  userId,
-                  hiperfocoAtual: hiperfocoNome,
-                },
-              });
-            }}
-          >
-            <Text style={styles.drawerIcon}>☸</Text>
-            <Text style={styles.drawerText}>Editar hiperfoco</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.drawerItem}
-            onPress={() => {
-              fecharMenu();
-              router.push("/Feedback");
-            }}
-          >
-            <Text style={styles.drawerIcon}>⚭</Text>
-            <Text style={styles.drawerText}>Feedback</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.drawerItem}
-            onPress={() => {
-              fecharMenu();
-              router.push({
-                pathname: "/em-andamento",
-                params: {
-                  userId,
-                  materiaNome: "Matemática",
-                },
-              });
-            }}
-          >
-            <Text style={styles.drawerIcon}>▣</Text>
-            <Text style={styles.drawerText}>Atividades concluídas</Text>
-          </TouchableOpacity>
         </View>
 
         <View>

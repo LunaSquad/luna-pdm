@@ -39,13 +39,6 @@ export default function LoginAluno() {
 
   if (!fontsLoaded) return null;
 
-  function entrarTeste() {
-    router.replace({
-      pathname: '/home',
-      params: { userId: 'mock-123', tipoUser: 'aluno' },
-    });
-  }
-
   async function entrar() {
     if (!email.trim() || !senha.trim()) {
       aviso('Campos obrigatórios', 'Informe o e-mail institucional e a senha.');
@@ -148,12 +141,6 @@ export default function LoginAluno() {
                 <Text style={styles.botaoTexto}>Login</Text>
               )}
             </Pressable>
-
-            {__DEV__ && (
-              <Pressable style={styles.botaoTeste} onPress={entrarTeste}>
-                <Text style={styles.botaoTesteTexto}>Entrar (modo teste)</Text>
-              </Pressable>
-            )}
 
             <Text style={styles.cadastro}>
               Novo por aqui?{' '}
