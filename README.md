@@ -6,11 +6,21 @@ Atividade Avaliativa II — Programação para Dispositivos Móveis I.
 ## Como rodar
 ```bash
 npm install
-npx expo install react-native-nfc-manager expo-dev-client   # uma vez
 cp .env.example .env                                        # EXPO_PUBLIC_API_URL=https://...
 npx expo run:android          # gera o development build (NFC não roda no Expo Go)
 npx expo start --dev-client
 ```
+
+### Rodando no Expo Go (sem NFC)
+Para testar as telas e a API sem gerar o development build, use o Expo Go.
+**Atenção:** a leitura de tag NFC não funciona nesse modo. Use a alternativa **Entrar com código**.
+
+```bash
+npx expo start --go
+```
+
+Ou, com o servidor já rodando (`npx expo start`), aperte **`s`** no terminal para alternar entre development build e Expo Go. O QR code muda para `exp://<ip>:8081`; escaneie de novo pelo Expo Go.
+
 Entrar na turma pela tag NFC: **[docs/NFC.md](docs/NFC.md)** (link da tag: `appluna://turma/<idTurma>`).
 
 ## Estrutura de pastas (seguindo as aulas)
