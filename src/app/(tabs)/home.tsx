@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useRef, useState, useMemo } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { theme } from "../../styles/theme";
 import {
   View,
@@ -126,6 +126,12 @@ export default function Home() {
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
 
   const [busca, setBusca] = useState("");
+  const [buscaDebounced, setBuscaDebounced] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
 
   const materiasFiltradas = useMemo(
     () =>
