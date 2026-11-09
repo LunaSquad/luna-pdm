@@ -1,11 +1,3 @@
-/**
- * Aulas 13 e 14 – camada de serviços.
- * Aqui fica só a configuração de rede (URL base + fetch com timeout e erros
- * amigáveis). As telas NUNCA chamam fetch direto: usam as funções de
- * authService, alunoService e turmaService, que chamam `requisitar`.
- */
-
-// Definida no arquivo .env (EXPO_PUBLIC_API_URL). Use https:// em produção.
 export const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
 if (!BASE_URL) {
@@ -13,7 +5,6 @@ if (!BASE_URL) {
 }
 
 type OpcoesRequisicao = RequestInit & {
-  /** Tempo máximo de espera. O Render gratuito pode levar ~1 min para "acordar". */
   timeoutMs?: number;
 };
 

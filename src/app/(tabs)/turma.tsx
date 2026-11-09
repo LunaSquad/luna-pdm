@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,37 +6,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { requisitar } from '../../services/api';
 import { useUser } from "../../context/UserContext";
 
-// ==========================================
-// COMPONENTE REUTILIZÁVEL COM PROPS (Requisito 6)
-// ==========================================
-type AlunoProps = {
-  nome: string;
-  hiperfoco: string;
-};
+// Importando o componente reutilizável isolado (Requisito 6)
+import { AlunoCard } from '../../components/turma/AlunoCard';
 
-const AlunoCard = ({ nome, hiperfoco }: AlunoProps) => (
-  <View style={styles.card}>
-    <Ionicons name="person-circle-outline" size={42} color="#005C53" />
-    <View style={styles.cardInfo}>
-      <Text style={styles.alunoNome}>{nome}</Text>
-      <Text style={styles.alunoMatricula}>Foco: {hiperfoco || "Não definido"}</Text>
-    </View>
-  </View>
-);
-
-// ==========================================
-// TELA PRINCIPAL
-// ==========================================
 export default function TurmaScreen() {
   const router = useRouter();
 
   const contexto = useUser();
   const userId = contexto?.userId;
 
-  // Da URL, pegamos apenas o ID que vem da Tag NFC (se existir)
+  // Da URL que pegamos do NFC pegamos apenas o ID da turma (Caso exista)
   const { id: turmaIdFromNFC } = useLocalSearchParams();
 
-  // ESTADOS (Requisito 5)
+  // ESTADOS USANDO USESTATE
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [turmaInfo, setTurmaInfo] = useState<any>(null);
@@ -44,7 +26,7 @@ export default function TurmaScreen() {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [emTurma, setEmTurma] = useState(false);
 
-  // CONSUMO DA API REST (Requisito 3)
+  // CONSUMO DA API REST
   const carregarOuVincularTurma = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -55,7 +37,7 @@ export default function TurmaScreen() {
       setLoading(true);
       setError('');
 
-      // Se viemos do NFC, temos um turmaIdFromNFC para vincular (Rota 7)
+      // Caso tenha o turmaID do NFC, usamos para vincular
       if (turmaIdFromNFC) {
         const data = await requisitar<any>(`/alunos/${userId}/turma/vincular`, {
           method: "POST",
@@ -70,7 +52,7 @@ export default function TurmaScreen() {
           Alert.alert("Sucesso!", data.mensagem);
         }
       }
-      // Se não, apenas consultamos a turma atual (Rota 6)
+      // Se não, apenas consultamos a turma atual
       else {
         const data = await requisitar<any>(`/alunos/${userId}/turma`);
 
@@ -85,7 +67,7 @@ export default function TurmaScreen() {
         }
       }
     } catch (err: any) {
-      // TRATAMENTO DE ERRO (Requisito 7)
+      // TRATAMENTO DE ERRO
       console.log("Erro de API:", err);
       const mensagemErro = err.message || 'Não foi possível conectar ao servidor.';
       setError(mensagemErro);
@@ -95,12 +77,12 @@ export default function TurmaScreen() {
     }
   }, [userId, turmaIdFromNFC]);
 
-  // EFEITOS (Requisito 5)
+  // useEffect
   useEffect(() => {
     carregarOuVincularTurma();
   }, [carregarOuVincularTurma]);
 
-  // TRATAMENTO VISUAL DE CARREGAMENTO (Requisito 7)
+  //Tratamento visual de carregamento
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -112,7 +94,7 @@ export default function TurmaScreen() {
     );
   }
 
-  // TRATAMENTO DE ALUNO SEM TURMA OU ERRO
+  //Tratamento de Aluno sem turma ou erro
   if (!emTurma || error) {
     return (
       <View style={styles.centerContainer}>
@@ -127,14 +109,15 @@ export default function TurmaScreen() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER BASEADO NO DESIGN DO LUNA (Requisito 1 - Flexbox) */}
+      {/* header utilizando flexbox */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Minha Turma</Text>
         <Text style={styles.headerSubtitle}>{turmaInfo?.nome}</Text>
         <Text style={styles.headerSubSubtitle}>{professorInfo?.nome}</Text>
       </View>
 
-      {/* EXIBIÇÃO DE DADOS EM LISTA (Requisito 4) */}
+      
+      {/* Exibição de dados em lista */}
       <View style={styles.content}>
         <Text style={styles.sectionTitle}>Colegas de Sala</Text>
 
@@ -152,7 +135,7 @@ export default function TurmaScreen() {
   );
 }
 
-// ESTILIZAÇÃO VIA STYLESHEET (Requisito 1)
+// Style com stylesheet
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -204,33 +187,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 15,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  cardInfo: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  alunoNome: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  alunoMatricula: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
   },
   loadingText: {
     marginTop: 15,

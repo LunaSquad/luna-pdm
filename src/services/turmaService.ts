@@ -1,9 +1,5 @@
 import { requisitar } from "./api";
 
-/* ------------------------------------------------------------------ */
-/* Tipos                                                              */
-/* ------------------------------------------------------------------ */
-
 export type Professor = {
   id: string;
   nome: string;
@@ -51,9 +47,6 @@ type TurmaApi = {
   } | null;
 };
 
-/* ------------------------------------------------------------------ */
-/* Conversão API -> modelo usado pelas telas                          */
-/* ------------------------------------------------------------------ */
 
 function mapearTurma(dados: TurmaApi): TurmaCompleta | null {
   if (!dados.emTurma || !dados.turma) return null;
@@ -78,25 +71,15 @@ function mapearTurma(dados: TurmaApi): TurmaCompleta | null {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* Endpoints                                                          */
-/* ------------------------------------------------------------------ */
-
-/**
- * GET /alunos/:id/turma
- * Retorna null quando o aluno ainda não está em nenhuma turma
- * (a tela então mostra o estado "sem turma").
- */
 export async function buscarTurmaDoAluno(userId: string): Promise<TurmaCompleta | null> {
   const dados = await requisitar<TurmaApi>(`/alunos/${encodeURIComponent(userId)}/turma`);
   return mapearTurma(dados);
 }
 
 /**
- * Lê o que veio da tag NFC (ou digitado/colado) e devolve o id da turma.
+ * Lê o que veio da tag NFC e devolve o id da turma.
  * Formatos aceitos:
- *   appluna://turma/6aea297b7e5984a2a167be19   <- o recomendado para gravar na tag
- *   6aea297b7e5984a2a167be19                   <- só o id também funciona
+ *   appluna://turma/6aea297b7e5984a2a167be19                   
  */
 export function extrairConvite(texto: string): Convite {
   const limpo = texto.trim();
