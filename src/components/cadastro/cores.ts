@@ -1,4 +1,4 @@
-import { cores as base } from '../../theme';
+import { cores as base } from '../../styles/cores';
 
 export const cores = {
   ...base,

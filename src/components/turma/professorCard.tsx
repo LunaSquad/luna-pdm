@@ -1,5 +1,5 @@
 import { View, Text, Image, StyleSheet } from "react-native";
-import { theme } from "../styles/theme";
+import { theme } from "../../styles/theme";
 
 type Props = {
   nome: string;

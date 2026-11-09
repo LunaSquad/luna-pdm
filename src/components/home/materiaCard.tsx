@@ -5,8 +5,8 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
-import { theme } from "../styles/theme";
-import CustomButton from "./customButton";
+import { theme } from "../../styles/theme";
+import CustomButton from "../common/customButton";
 
 type Props = {
   title: string;

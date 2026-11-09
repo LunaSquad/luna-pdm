@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -11,26 +11,29 @@ import {
   ScrollView,
   StyleSheet,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { BASE_URL } from "../../services/api";
+// Importando a função requisitar da API (Requisito 3)
+import { requisitar } from "../../services/api";
+
+// Importando o Contexto Global para pegar o usuário logado
+import { useUser } from "../../context/UserContext";
 
 import PerfilTest from "../../../assets/assets-home/PerfilTest.png";
 import LogoLuna from "../../../assets/luna.png";
 
-import { CampoPerfil } from "../../components/ProfileField";
-import { AcaoPerfil } from "../../components/ProfileAction";
-
-const USAR_MOCK = true;
+// Importação de componentes reutilizáveis com Props (Requisito 6)
+import { CampoPerfil } from "../../components/perfil/ProfileField";
+import { AcaoPerfil } from "../../components/perfil/ProfileAction";
 
 const COR_PRIMARIA = "#00595F";
-const COR_BOTAO_LAUDO  = "#DDEFF1";
+const COR_BOTAO_LAUDO = "#DDEFF1";
 
 type Aluno = {
   nome?: string;
   cpf?: string;
-  dataNascimento?: string;
+  dataNasc?: string;
   email?: string;
   urlLaudo?: string;
   urlFotoAluno?: string;
@@ -42,86 +45,69 @@ type AlunoResponse = {
   message?: string;
 };
 
-const ALUNO_MOCK: Aluno = {
-  nome: "Maria Barbosa",
-  cpf: "327.655.454-56",
-  dataNascimento: "05/07/2020",
-  email: "maria.barbosa11@gmail.com",
-  urlLaudo: "https://exemplo.com/laudo.pdf",
-};
-
 export default function Perfil() {
   const router = useRouter();
-  const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
-  const userId = Array.isArray(userIdParam) ? userIdParam[0] : userIdParam;
+
+  const contexto = useUser();
+  const userId = contexto?.userId;
 
   const [aluno, setAluno] = useState<Aluno | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const carregarAluno = useCallback(
-    async (estaAtiva: () => boolean) => {
-      if (USAR_MOCK) {
-        setAluno(ALUNO_MOCK);
-        setLoading(false);
-        return;
+  const carregarAluno = useCallback(async (estaAtiva: () => boolean) => {
+    if (!userId) {
+      if (estaAtiva()) setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Consumo de API real usando fetch/requisitar (Requisitos 3 e 4)
+      const data = await requisitar<AlunoResponse>(`/alunos/${userId}`);
+
+      if (!estaAtiva()) return;
+
+      if (data && data.aluno) {
+        setAluno(data.aluno);
+      } else {
+        setAluno(null);
       }
-
-      if (!userId) {
-        if (estaAtiva()) setLoading(false);
-        return;
+    } catch (error) {
+      console.log("ERRO AO CARREGAR PERFIL:", error);
+      if (estaAtiva()) {
+        // Tratamento de Erros de comunicação com o backend (Requisito 7)
+        Alert.alert(
+          "Erro de Conexão",
+          "Não foi possível carregar os dados do aluno. Verifique o backend e tente novamente."
+        );
       }
+    } finally {
+      if (estaAtiva()) setLoading(false);
+    }
+  }, [userId]);
 
-      try {
-        setLoading(true);
+  // useFocusEffect garante que a API será chamada sempre que a aba for focada
+  useFocusEffect(
+    useCallback(() => {
+      let estaAtiva = true;
+      carregarAluno(() => estaAtiva);
 
-        const resp = await fetch(`${BASE_URL}/students/aluno/${userId}`);
-
-        if (!resp.ok) {
-          throw new Error("Não foi possível carregar os dados do aluno.");
-        }
-
-        const data: AlunoResponse = await resp.json();
-
-        if (!estaAtiva()) return;
-
-        if (data.ok && data.aluno) {
-          setAluno(data.aluno);
-        } else {
-          setAluno(null);
-          console.log("Erro ao carregar aluno:", data.message);
-        }
-      } catch (error) {
-        console.log("ERRO AO CARREGAR PERFIL:", error);
-        if (estaAtiva()) {
-          Alert.alert(
-            "Erro",
-            "Não foi possível carregar os dados. Verifique sua conexão e tente novamente."
-          );
-        }
-      } finally {
-        if (estaAtiva()) setLoading(false);
-      }
-    },
-    [userId]
+      return () => {
+        estaAtiva = false;
+      };
+    }, [carregarAluno])
   );
-
-  useEffect(() => {
-    let estaAtiva = true;
-    carregarAluno(() => estaAtiva);
-
-    return () => {
-      estaAtiva = false;
-    };
-  }, [carregarAluno]);
 
   function verLaudo() {
     if (!aluno?.urlLaudo) {
-      Alert.alert("Aviso", "Nenhum laudo disponível.");
+      Alert.alert("Aviso", "Nenhum laudo disponível para este aluno.");
       return;
     }
     Linking.openURL(aluno.urlLaudo);
   }
 
+  // Apresentação de mensagem/indicador de carregamento (Requisito 7)
   if (loading) {
     return (
       <View style={[styles.screen, styles.center]}>
@@ -138,18 +124,17 @@ export default function Perfil() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
+        {/* Interface e Estilização com Flexbox e StyleSheet (Requisito 1) */}
         <View style={styles.header}>
           <Image
             source={require("../../../assets/logo-mobile.png")}
             style={styles.logoBorboleta}
             resizeMode="contain"
           />
-
           <Image source={LogoLuna} style={styles.logo} resizeMode="contain" />
 
           <View style={styles.headerRow}>
             <Text style={styles.headerNome}>{aluno?.nome || "Usuário"}</Text>
-
             <Image
               style={styles.foto}
               source={
@@ -161,11 +146,12 @@ export default function Perfil() {
 
         <View style={styles.card}>
           <View style={styles.dados}>
+            {/* Componentes reutilizáveis recebendo Props (Requisito 6) */}
             <CampoPerfil label="NOME" valor={aluno?.nome} />
             <CampoPerfil label="CPF" valor={aluno?.cpf} />
             <CampoPerfil
               label="DATA DE NASCIMENTO"
-              valor={aluno?.dataNascimento}
+              valor={aluno?.dataNasc ? new Date(aluno.dataNasc).toLocaleDateString('pt-BR') : ""}
             />
             <CampoPerfil label="E-MAIL" valor={aluno?.email} />
 
@@ -175,11 +161,7 @@ export default function Perfil() {
                 activeOpacity={0.8}
                 onPress={verLaudo}
               >
-                <MaterialIcons
-                  name="description"
-                  size={16}
-                  color={COR_PRIMARIA}
-                />
+                <MaterialIcons name="description" size={16} color={COR_PRIMARIA} />
                 <Text style={styles.botaoLaudoTexto}>Ver laudo</Text>
               </TouchableOpacity>
             </CampoPerfil>
@@ -258,7 +240,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#FFDDD2",
   },
-
   card: {
     backgroundColor: "#fff",
     marginHorizontal: 34,

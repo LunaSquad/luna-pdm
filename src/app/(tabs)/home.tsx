@@ -10,7 +10,6 @@ import {
   Animated,
   Dimensions,
   Pressable,
-  TextInput,
   Alert,
   SectionList,
   FlatList,
@@ -23,8 +22,9 @@ import {
 } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 
-import { BASE_URL } from "../../services/api";
-import styles from "../style";
+import { buscarAluno } from "../../services/alunoService";
+import { useUser } from "../../context/UserContext";
+import styles from "../../styles/home.styles";
 
 import PerfilTest from "../../../assets/assets-home/PerfilTest.png";
 import temporyMenu from "../../../assets/assets-home/menu.png";
@@ -37,8 +37,8 @@ import portuguesImg from "../../../assets/assets-home/portugues.png";
 import matematicaImg from "../../../assets/assets-home/matematica.png";
 import geografiaImg from "../../../assets/assets-home/geografia.png";
 
-import { MateriaCard } from "../../components/materiaCard";
-import { Input } from "../../components/input";
+import { MateriaCard } from "../../components/home/materiaCard";
+import { Input } from "../../components/common/input";
 
 const { width } = Dimensions.get("window");
 const MENU_WIDTH = width * 0.78;
@@ -113,16 +113,14 @@ export default function Home() {
   const { userId: userIdParam, tipoUser } =
     useLocalSearchParams<{ userId?: string; tipoUser?: string }>();
 
-  const userId = Array.isArray(userIdParam) ? userIdParam[0] : userIdParam;
+  const { userId: userIdContexto } = useUser();
+
+  const userId =
+    (Array.isArray(userIdParam) ? userIdParam[0] : userIdParam) ?? userIdContexto;
 
   const [aluno, setAluno] = useState<Aluno | null>(null);
   const [materias, setMaterias] = useState<MateriaCardData[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [mostrarOpcoesTurma, setMostrarOpcoesTurma] = useState(false);
-  const [inserindoLink, setInserindoLink] = useState(false);
-  const [linkConvite, setLinkConvite] = useState("");
-  const [loadingTurma, setLoadingTurma] = useState(false);
 
   const [menuAberto, setMenuAberto] = useState(false);
   const slideAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
@@ -262,21 +260,7 @@ export default function Home() {
     try {
       setLoading(true);
 
-      if (!BASE_URL) {
-        throw new Error("URL da API não configurada.");
-      }
-
-      const resposta = await fetch(
-        `${BASE_URL.replace(/\/$/, "")}/alunos/${encodeURIComponent(userId)}`
-      );
-
-      const dados: AlunoResponse = await resposta.json();
-
-      if (!resposta.ok) {
-        throw new Error(
-          dados.erro || "Não foi possível carregar os dados do aluno."
-        );
-      }
+      const dados = await buscarAluno(userId);
 
       if (!dados.aluno) {
         throw new Error("A API não retornou o perfil do aluno.");
@@ -320,81 +304,6 @@ export default function Home() {
     }, [carregarTudo])
   );
 
-  // Lê o código e o ID da turma presentes no link de convite.
-  async function processarConvite(link: string) {
-    const linkLimpo = link.trim();
-
-    if (!linkLimpo) {
-      Alert.alert("Aviso", "Por favor, cole um link válido.");
-      return;
-    }
-
-    try {
-      const queryString = linkLimpo.split("?")[1];
-
-      if (!queryString) {
-        throw new Error("Link sem parâmetros.");
-      }
-
-      const params = new URLSearchParams(queryString);
-      const codigo = params.get("codigo");
-      const turmaIdExtraida = params.get("turmaId");
-
-      if (!codigo || !turmaIdExtraida) {
-        Alert.alert(
-          "Erro",
-          "O link de convite está incompleto ou inválido."
-        );
-        return;
-      }
-
-      if (!userId) {
-        Alert.alert("Erro", "Não foi possível identificar o aluno.");
-        return;
-      }
-
-      setLoadingTurma(true);
-
-      const response = await fetch(
-        `${BASE_URL}/students/aluno/${userId}/vincular-turma`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            turmaId: turmaIdExtraida,
-            codigoAcesso: codigo,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (response.ok || data.ok) {
-        // preAdaptarTudoEmSegundoPlano(userId);
-
-        Alert.alert("Sucesso!", "Você entrou na turma com sucesso.");
-        setInserindoLink(false);
-        setMostrarOpcoesTurma(false);
-        setLinkConvite("");
-
-        // Atualiza os dados do aluno para refletir o vínculo recém-criado.
-        await carregarTudo(() => true);
-      } else {
-        Alert.alert(
-          "Erro",
-          data.message || "Não foi possível entrar na turma."
-        );
-      }
-    } catch (error) {
-      console.log("ERRO AO PROCESSAR CONVITE:", error);
-      Alert.alert("Erro", "Não foi possível processar esse link de convite.");
-    } finally {
-      setLoadingTurma(false);
-    }
-  }
-
   const hiperfocoNome = aluno?.hiperfoco || "Não informado";
 
   const codigoTurmaAluno = aluno?.turmaId || undefined;
@@ -420,7 +329,7 @@ export default function Home() {
           activeOpacity={0.8}
           onPress={() =>
             router.push({
-              pathname: "/perfil",
+              pathname: "/userProfile",
               params: { userId },
             })
           }
@@ -498,95 +407,18 @@ export default function Home() {
               Você ainda não está em uma turma.
             </Text>
 
-            {!mostrarOpcoesTurma ? (
-              <View style={{ alignItems: "center" }}>
-                <TouchableOpacity
-                  style={styles.joinClassButton}
-                  onPress={() => setMostrarOpcoesTurma(true)}
-                >
-                  <MaterialIcons name="add" size={40} color="#fff" />
-                </TouchableOpacity>
+            <View style={{ alignItems: "center" }}>
+              <TouchableOpacity
+                style={styles.joinClassButton}
+                onPress={() => router.push("/turma")}
+              >
+                <MaterialIcons name="nfc" size={40} color="#fff" />
+              </TouchableOpacity>
 
-                <Text style={styles.joinClassButtonText}>
-                  Ingressar em{"\n"}uma turma
-                </Text>
-              </View>
-            ) : inserindoLink ? (
-              <View style={styles.joinOptionsContainer}>
-                <Text style={styles.inputLabel}>
-                  Cole o link de convite abaixo:
-                </Text>
-
-                <TextInput
-                  style={styles.inputConvite}
-                  placeholder="luna://app/convite?codigo=..."
-                  value={linkConvite}
-                  onChangeText={setLinkConvite}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-
-                {loadingTurma ? (
-                  <ActivityIndicator
-                    size="large"
-                    color="#0F766E"
-                    style={{ marginVertical: 10 }}
-                  />
-                ) : (
-                  <TouchableOpacity
-                    style={styles.btnConfirmar}
-                    onPress={() => processarConvite(linkConvite)}
-                  >
-                    <Text style={styles.btnConfirmarText}>
-                      Entrar na Turma
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={styles.cancelJoinButton}
-                  onPress={() => setInserindoLink(false)}
-                >
-                  <Text style={styles.cancelJoinText}>Voltar</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.joinOptionsContainer}>
-                <TouchableOpacity
-                  style={styles.joinOptionCard}
-                  onPress={() => setInserindoLink(true)}
-                >
-                  <MaterialIcons name="link" size={24} color="#0F766E" />
-                  <Text style={styles.joinOptionText}>
-                    Inserir Link da Turma
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.joinOptionCard}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/QrCodeScanner",
-                      params: { userId },
-                    })
-                  }
-                >
-                  <MaterialIcons
-                    name="qr-code-scanner"
-                    size={24}
-                    color="#0F766E"
-                  />
-                  <Text style={styles.joinOptionText}>Ler QR Code</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.cancelJoinButton}
-                  onPress={() => setMostrarOpcoesTurma(false)}
-                >
-                  <Text style={styles.cancelJoinText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+              <Text style={styles.joinClassButtonText}>
+                Ingressar em{"\n"}uma turma
+              </Text>
+            </View>
           </View>
         )}
       </View>

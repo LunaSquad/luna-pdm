@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { View, Text, Animated, Easing, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Animated, Easing, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { theme } from "../styles/theme";
-import CustomButton from "./customButton";
+import { theme } from "../../styles/theme";
+import CustomButton from "../common/customButton";
 
 export type NfcStatus = "ocioso" | "lendo" | "sucesso" | "erro";
 
@@ -13,7 +13,10 @@ type Props = {
    * Sem turma: versão grande, é a ação principal da tela.
    */
   temTurma: boolean;
+  /** Inicia a leitura da tag. */
   onPress: () => void;
+  /** Se informado, aparece um "Cancelar" enquanto o app espera a tag. */
+  onCancelar?: () => void;
 };
 
 const TEXTOS: Record<NfcStatus, string> = {
@@ -30,7 +33,7 @@ const TEXTOS_COMPACTO: Record<NfcStatus, string> = {
   erro: "Não foi possível ler a tag.",
 };
 
-export function NfcConviteCard({ status, temTurma, onPress }: Props) {
+export function NfcConviteCard({ status, temTurma, onPress, onCancelar }: Props) {
   // Anel que "pulsa" enquanto o app espera a tag
   const pulso = useRef(new Animated.Value(0)).current;
   const lendo = status === "lendo";
@@ -81,7 +84,14 @@ export function NfcConviteCard({ status, temTurma, onPress }: Props) {
   );
 
   const acao = lendo ? (
-    <ActivityIndicator color={theme.colors.primary} style={temTurma ? undefined : styles.carregandoGrande} />
+    <View style={[styles.lendo, !temTurma && { marginTop: theme.spacing.sm }]}>
+      <ActivityIndicator color={theme.colors.primary} />
+      {onCancelar ? (
+        <TouchableOpacity onPress={onCancelar} hitSlop={8}>
+          <Text style={styles.cancelar}>Cancelar</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   ) : (
     <CustomButton
       title={status === "erro" ? "Tentar de novo" : temTurma ? "Ler tag" : "Ler tag NFC"}
@@ -183,7 +193,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  carregandoGrande: {
-    marginTop: theme.spacing.md,
+  lendo: {
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
+  cancelar: {
+    fontFamily: theme.fonts.bold,
+    fontSize: theme.fontSize.medium,
+    color: theme.colors.primary,
+    textDecorationLine: "underline",
   },
 });

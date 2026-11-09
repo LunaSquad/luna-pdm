@@ -62,7 +62,6 @@ export default function Cadastro() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: larguraTela } = useWindowDimensions();
-  // Em alguns Androids (Expo Go) os insets chegam zerados; usamos mínimos pra não cortar topo/rodapé.
   const barraStatus = Math.max(insets.top, Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0);
   const folgaInferior = Math.max(insets.bottom, Platform.OS === 'android' ? 40 : 0);
   const [passo, setPasso] = useState(0);
@@ -70,7 +69,6 @@ export default function Cadastro() {
   const [loading, setLoading] = useState(false);
   const rolagem = useRef<ScrollViewInstance>(null);
 
-  // Ao trocar de passo, a rolagem volta pro topo.
   useEffect(() => {
     rolagem.current?.scrollTo({ y: 0, animated: false });
   }, [passo]);
@@ -201,7 +199,6 @@ export default function Cadastro() {
         form.append("hiperfoco", hiperfoco.trim());
       }
 
-      // As fotos são opcionais segundo o contrato da API.
       if (rosto) {
         form.append('fotoAluno', new File(rosto.uri));
       }
@@ -359,7 +356,7 @@ export default function Cadastro() {
           )}
         </ScrollView>
 
-        {/* Rodapé fixo, respeitando a barra de navegação do Android/iOS */}
+        {/* Rodapé fixo */}
         <View style={[styles.rodape, { paddingBottom: folgaInferior + 38 }]}>
           <Pressable
             style={({ pressed }) => [
@@ -420,7 +417,6 @@ function SecaoFoto({ titulo, foto, erro, onCamera, onGaleria, onRemover }: Secao
 const styles = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.branco },
 
-  // Figma: topo branco alto, seta à esquerda, logo centralizado
   topo: { backgroundColor: cores.branco, height: 132 },
   voltar: { position: 'absolute', left: 8, top: 0 },
   logo: {
@@ -435,7 +431,6 @@ const styles = StyleSheet.create({
   },
 
   painel: { flex: 1, backgroundColor: cores.verde, borderTopRightRadius: 56 },
-  // Figma: margem lateral de 15%, título a ~37 do topo do painel
   scroll: { paddingHorizontal: '15%', paddingTop: 32, paddingBottom: 16 },
   titulo: { fontFamily: 'Inter_800ExtraBold', color: cores.pessego, fontSize: 20 },
   subtitulo: {
